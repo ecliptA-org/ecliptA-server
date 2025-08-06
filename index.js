@@ -10,11 +10,6 @@ const PORT = process.env.PORT || 3333;
 app.use(cors());
 app.use(express.json());
 
-// 서버 실행
-app.listen(PORT, () => {
-  console.log(`서버가 포트 ${PORT}에서 실행 중입니다.`);
-});
-
 ////////////////////////////// 테스트 //////////////////////////////
 
 // Health check 엔드포인트
@@ -22,16 +17,23 @@ app.get('/', (req, res) => {
   res.send('서버 작동 중');
 });
 
-// DB 연결 테스트
-app.get('/api/dbtest', async (req, res) => {
-  try {
-    const [rows] = await pool.query('SELECT 1 AS result');
-    res.json({ db: 'ok', result: rows });
-  } catch (err) {
-    res.status(500).json({ db: 'error', message: err.message });
-  }
-});
+// DB 연결 테스트 (개발 환경에서만)
+if (process.env.NODE_ENV !== 'production') {
+  app.get('/api/dbtest', async (req, res) => {
+    try {
+      const [rows] = await pool.query('SELECT 1 AS result');
+      res.json({ db: 'ok', result: rows });
+    } catch (err) {
+      res.status(500).json({ db: 'error', message: err.message });
+    }
+  });
+}
 
 ////////////////////////////// 회원 //////////////////////////////
 const userRouter = require('./src/routes/user.js');
 app.use('/api/user', userRouter);
+
+////////////////////////////// 서버 실행 //////////////////////////////
+app.listen(PORT, () => {
+  console.log(`서버가 포트 ${PORT}에서 실행 중입니다.`);
+});
