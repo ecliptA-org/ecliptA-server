@@ -1,23 +1,20 @@
 {
   "development": {
-    "username": "root",
-    "password": "0910",
+    "username": "DB_USER",
+    "password": "DB_PASSWORD",
+    "use_env_variable": "DATABASE_URL_DEV",
     "database": "eclipta",
     "host": "localhost",
     "dialect": "mysql"
   },
   "test": {
-    "username": "root",
-    "password": "0910",
-    "database": "eclipta",
+    "use_env_variable": "DATABASE_URL_TEST",
+    "database": "eclipta_test",
     "host": "localhost",
     "dialect": "mysql"
   },
   "production": {
-    "username": "root",
-    "password": "0910",
-    "database": "eclipta",
-    "host": "localhost",
+    "use_env_variable": "DATABASE_URL_PROD",
     "dialect": "mysql"
   }
 }
