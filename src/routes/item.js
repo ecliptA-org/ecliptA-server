@@ -4,7 +4,7 @@ const auth = require('../middlewares/auth');
 const router = express.Router();
 
 // 카테고리별 아이템 목록 조회
-router.get('/items/:item_category_id', async (req, res) => {
+router.get('/:item_category_id', async (req, res) => {
     const { item_category_id } = req.params;
 
     try {
@@ -23,7 +23,7 @@ router.get('/items/:item_category_id', async (req, res) => {
 });
 
 // 아이템 구매
-router.post('/items/purchase', auth, async (req, res) => {
+router.post('/purchase', auth, async (req, res) => {
     const { item_id } = req.body;
     const { user_id } = req.user;
 
@@ -99,7 +99,7 @@ router.post('/items/purchase', auth, async (req, res) => {
 });
 
 // 유저가 구매한 아이템 목록 조회
-router.get('/items', auth, async (req, res) => {
+router.get('/', auth, async (req, res) => {
     const { user_id } = req.user;
 
     try {

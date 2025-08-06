@@ -35,7 +35,7 @@ app.use('/api/user', userRouter);
 
 ////////////////////////////// 아이템 //////////////////////////////
 const itemRouter = require('./src/routes/item.js');
-app.use('/api', itemRouter);
+app.use('/api/items', itemRouter);
 
 ////////////////////////////// 서버 실행 //////////////////////////////
 app.listen(PORT, () => {
