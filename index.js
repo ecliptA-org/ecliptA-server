@@ -37,6 +37,10 @@ app.use('/api/user', userRouter);
 const itemRouter = require('./src/routes/item.js');
 app.use('/api/items', itemRouter);
 
+////////////////////////////// 공간 //////////////////////////////
+const userSpaceRouter = require('./src/routes/userSpace.js');
+app.use('/api/user-space', userSpaceRouter);
+
 ////////////////////////////// 서버 실행 //////////////////////////////
 app.listen(PORT, () => {
   console.log(`서버가 포트 ${PORT}에서 실행 중입니다.`);
