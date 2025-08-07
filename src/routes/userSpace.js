@@ -94,7 +94,13 @@ router.post('/:user_space_id/items', auth, async (req, res) => {
         }
 
         for (const item of items) {
-            if (!item.item_id || !item.item_location) continue;
+        const failedItems = [];
+
+        for (const item of items) {
+            if (!item.item_id || !item.item_location) {
+                failedItems.push(item);
+                continue;
+            }
 
             await conn.query(
                 `INSERT INTO space_item (user_space_id, item_id, item_location) VALUES (?, ?, ST_GeomFromGeoJSON(?))`,
@@ -102,6 +108,13 @@ router.post('/:user_space_id/items', auth, async (req, res) => {
             );
             insertCount.push(item.item_id);
         }
+
+        await conn.commit();
+        res.status(201).json({
+            result: 'success',
+            items_inserted: insertCount.length,
+            failed_items: failedItems.length > 0 ? failedItems : undefined
+        });
 
         await conn.commit();
         res.status(201).json({
