@@ -41,6 +41,10 @@ app.use('/api/items', itemRouter);
 const userSpaceRouter = require('./src/routes/userSpace.js');
 app.use('/api/user-space', userSpaceRouter);
 
+////////////////////////////// 공간 마커(지도) //////////////////////////////
+const mapRouter = require('./src/routes/map.js');
+app.use('/api/map', mapRouter);
+
 ////////////////////////////// 서버 실행 //////////////////////////////
 app.listen(PORT, () => {
   console.log(`서버가 포트 ${PORT}에서 실행 중입니다.`);
