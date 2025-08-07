@@ -1,5 +1,5 @@
 const express = require('express');
-const pool = require('../config/db');
+const pool = require('../config/db.js');
 const auth = require('../middlewares/auth');
 const router = express.Router();
 
@@ -88,12 +88,13 @@ router.post('/:user_space_id/items', auth, async (req, res) => {
             'SELECT user_space_id FROM user_space WHERE user_space_id = ? AND user_id = ?',
             [Number(user_space_id), user_id]
         );
+
         if (userSpaces.length === 0) {
             await conn.rollback();
             return res.status(403).json({ error: '해당 공간에 대한 권한이 없습니다.' });
         }
 
-        for (const item of items) {
+        // 아이템 정보 저장
         const failedItems = [];
 
         for (const item of items) {
