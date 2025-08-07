@@ -72,6 +72,7 @@ router.post('/', auth, async (req, res) => {
 router.post('/:user_space_id/items', auth, async (req, res) => {
     const { user_space_id } = req.params;
     const { items } = req.body;
+    const { user_id } = req.user;
 
     if (!items || !Array.isArray(items) || items.length === 0) {
         return res.status(400).json({ error: 'items 배열이 필요합니다.' });
@@ -81,6 +82,16 @@ router.post('/:user_space_id/items', auth, async (req, res) => {
     const conn = await pool.getConnection();
     try {
         await conn.beginTransaction();
+
+        // user_space 권한 확인
+        const [userSpaces] = await conn.query(
+            'SELECT user_space_id FROM user_space WHERE user_space_id = ? AND user_id = ?',
+            [Number(user_space_id), user_id]
+        );
+        if (userSpaces.length === 0) {
+            await conn.rollback();
+            return res.status(403).json({ error: '해당 공간에 대한 권한이 없습니다.' });
+        }
 
         for (const item of items) {
             if (!item.item_id || !item.item_location) continue;
