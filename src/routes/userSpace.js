@@ -168,12 +168,13 @@ router.get('/:user_space_id/ranking', auth, async (req, res) => {
     }
 
     // 최근 스냅샷 날짜 조회
-    const [[{ snapshot_date } = {}]] = await pool.query(
+    const [rows] = await pool.query(
         `SELECT MAX(snapshot_date) AS snapshot_date 
          FROM space_ranking_snapshot 
          WHERE user_space_id = ?`,
         [user_space_id_num]
     );
+    const snapshot_date = rows?.[0]?.snapshot_date || null;
 
     // 이전 랭킹 정보 조회
     let prevRankingMap = {};
