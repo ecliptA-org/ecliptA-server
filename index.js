@@ -1,6 +1,8 @@
 const express = require("express");
 const pool = require("./src/config/db.js");
 const cors = require("cors");
+const cookieParser = require("cookie-parser");
+
 require("dotenv").config();
 
 const app = express();
@@ -9,6 +11,9 @@ const PORT = process.env.PORT || 3333;
 // 미들웨어
 app.use(cors());
 app.use(express.json());
+
+// refresh token 발급 시 필요한 쿠키 머시기
+app.use(cookieParser());
 
 ////////////////////////////// 테스트 //////////////////////////////
 

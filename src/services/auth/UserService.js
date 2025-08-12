@@ -2,8 +2,14 @@ const bcrypt = require("bcryptjs");
 const {
   findUserByEmail,
   createUser,
+  saveRefreshToken,
+  findUserByRefreshToken,
+  deleteRefreshToken,
 } = require("../../repositories/auth/UserRepository");
-const { generateAccessToken } = require("../../utils/tokenUtil");
+const {
+  generateAccessToken,
+  generateRefreshToken,
+} = require("../../utils/tokenUtil");
 
 // 회원가입
 const signupUser = async ({ email, password, nickname, gender }) => {
@@ -19,15 +25,17 @@ const signupUser = async ({ email, password, nickname, gender }) => {
   // DB 등록
   const userId = await createUser(email, hashedPassword, nickname, gender);
 
-  // Access Token 발급
   const accessToken = generateAccessToken({
     user_id: userId,
     email,
     nickname,
     gender,
   });
+  const refreshToken = generateRefreshToken({ user_id: userId });
 
-  return { accessToken };
+  await saveRefreshToken(userId, refreshToken);
+
+  return { accessToken, refreshToken };
 };
 
 // 로그인
@@ -51,18 +59,68 @@ const loginUser = async ({ email, password }) => {
     throw { status: 401, message: "비밀번호 불일치" };
   }
 
-  // Access Token 발급
   const accessToken = generateAccessToken({
     user_id: user.user_id,
     email: user.email,
     nickname: user.nickname,
     gender: user.gender,
   });
+  const refreshToken = generateRefreshToken({ user_id: user.user_id });
 
-  return { accessToken };
+  await saveRefreshToken(user.user_id, refreshToken);
+
+  return { accessToken, refreshToken };
+};
+
+// Refresh Token으로 새로운 Access Token 재발급
+const refreshToken = async (token) => {
+  if (!token) {
+    throw { status: 401, message: "Refresh Token이 없습니다." };
+  }
+
+  const users = await findUserByRefreshToken(token);
+  if (users.length === 0) {
+    throw { status: 403, message: "유효하지 않은 Refresh Token" };
+  }
+
+  const user = users[0];
+
+  try {
+    const jwt = require("jsonwebtoken");
+    const decoded = jwt.verify(
+      token,
+      process.env.JWT_REFRESH_SECRET || "your_jwt_refresh_secret_key"
+    );
+
+    // 재발급 대상이 맞는지 재검증
+    if (decoded.user_id !== user.user_id) {
+      throw new Error();
+    }
+
+    const newAccessToken = generateAccessToken({
+      user_id: user.user_id,
+      email: user.email,
+      nickname: user.nickname,
+      gender: user.gender,
+    });
+    const newRefreshToken = generateRefreshToken({ user_id: user.user_id });
+
+    await saveRefreshToken(user.user_id, newRefreshToken);
+
+    return { accessToken: newAccessToken, refreshToken: newRefreshToken };
+  } catch (err) {
+    throw { status: 403, message: "Refresh Token이 유효하지 않음" };
+  }
+};
+
+// 로그아웃 시 Refresh Token 삭제
+const logoutUser = async (userId) => {
+  await deleteRefreshToken(userId);
 };
 
 module.exports = {
   signupUser,
   loginUser,
+  refreshToken,
+  logoutUser,
 };

@@ -17,7 +17,34 @@ const createUser = async (email, hashedPassword, nickname, gender) => {
   return result.insertId;
 };
 
+// refresh token 저장
+const saveRefreshToken = async (userId, refreshToken) => {
+  await pool.query("UPDATE user SET refresh_token = ? WHERE user_id = ?", [
+    refreshToken,
+    userId,
+  ]);
+};
+
+// refresh token으로 유저 조회
+const findUserByRefreshToken = async (refreshToken) => {
+  const [rows] = await pool.query(
+    "SELECT * FROM user WHERE refresh_token = ?",
+    [refreshToken]
+  );
+  return rows;
+};
+
+// refresh token 삭제
+const deleteRefreshToken = async (userId) => {
+  await pool.query("UPDATE user SET refresh_token = NULL WHERE user_id = ?", [
+    userId,
+  ]);
+};
+
 module.exports = {
   findUserByEmail,
   createUser,
+  saveRefreshToken,
+  findUserByRefreshToken,
+  deleteRefreshToken,
 };
