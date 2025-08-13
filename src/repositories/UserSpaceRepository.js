@@ -5,8 +5,8 @@ const UserSpaceRepository = {
     async findSpace(longitude, latitude) {
         const [spaces] = await pool.query(
             `SELECT space_id 
-      FROM space 
-      WHERE ST_Equals(location, ST_GeomFromText('POINT(? ?)'))`,
+            FROM space 
+            WHERE ST_Equals(location, ST_GeomFromText('POINT(? ?)'))`,
             [longitude, latitude]
         );
         return spaces[0];
@@ -16,7 +16,7 @@ const UserSpaceRepository = {
     async insertSpace(longitude, latitude) {
         const [result] = await pool.query(
             `INSERT INTO space (location) 
-      VALUES (ST_GeomFromText('POINT(? ?)'))`,
+            VALUES (ST_GeomFromText('POINT(? ?)'))`,
             [longitude, latitude]
         );
         return result.insertId;
@@ -26,8 +26,8 @@ const UserSpaceRepository = {
     async checkDuplicate(user_id, space_id, space_name) {
         const [rows] = await pool.query(
             `SELECT user_space_id 
-      FROM user_space 
-      WHERE user_id = ? AND space_id = ? AND space_name = ?`,
+            FROM user_space 
+            WHERE user_id = ? AND space_id = ? AND space_name = ?`,
             [user_id, space_id, space_name]
         );
         return rows.length > 0;
@@ -37,10 +37,21 @@ const UserSpaceRepository = {
     async createUserSpace(user_id, space_id, space_name, memo) {
         const [result] = await pool.query(
             `INSERT INTO user_space (user_id, space_id, space_name, memo, created_at, updated_at, status)
-      VALUES (?, ?, ?, ?, NOW(), NOW(), 'ACTIVE')`,
+            VALUES (?, ?, ?, ?, NOW(), NOW(), 'ACTIVE')`,
             [user_id, space_id, space_name, memo]
         );
         return result.insertId;
+    },
+
+    // 명성치 조회
+    async getUserSpaceScore(user_space_id) {
+        const [rows] = await pool.query(
+            `SELECT score 
+            FROM user_space
+            WHERE user_space_id = ?`,
+            [user_space_id]
+        );
+        return rows[0] ? rows[0].score : 0;
     },
 };
 

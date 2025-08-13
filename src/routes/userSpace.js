@@ -253,4 +253,7 @@ router.get('/:user_space_id/ranking', auth, async (req, res) => {
     }
 });
 
+// 유저-공간 명성치 조회
+router.get('/:user_space_id/score', auth, UserSpaceController.getUserSpaceScore);
+
 module.exports = router;
