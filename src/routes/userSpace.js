@@ -1,76 +1,15 @@
 const express = require('express');
-const pool = require('../config/db.js');
-const auth = require('../middlewares/auth');
 const router = express.Router();
+const auth = require('../middlewares/auth');
+const UserSpaceController = require('../controllers/UserSpaceController');
+const pool = require('../config/db.js');
 
 // 공간 저장
-router.post('/', auth, async (req, res) => {
-    const { location, space_name, memo } = req.body;
-    const { user_id } = req.user;
-    const longitude = location.longitude;
-    const latitude = location.latitude;
-
-    if (!location || !space_name) {
-        return res.status(400).json({ error: 'location, space_name은 필수입니다.' });
-    }
-
-    const conn = await pool.getConnection();
-    try {
-        await conn.beginTransaction();
-
-        // location의 space가 이미 있으면 찾고, 없으면 새로 저장
-        let space_id;
-        // POINT(경도, 위도)로 비교
-        const [spaces] = await conn.query(
-            `SELECT space_id FROM space WHERE ST_Equals(location, ST_GeomFromText('POINT(? ?)'))`,
-            [longitude, latitude]
-        );
-        if (spaces.length > 0) {
-            space_id = spaces[0].space_id;
-        } else {
-            // 공간이 없으면 저장
-            const [spaceResult] = await conn.query(
-                `INSERT INTO space (location) VALUES (ST_GeomFromText('POINT(? ?)'))`,
-                [longitude, latitude]
-            );
-            space_id = spaceResult.insertId;
-        }
-
-        // 같은 유저+공간+이름으로 중복 생성 불가능
-        const [dupes] = await conn.query(
-            `SELECT user_space_id FROM user_space WHERE user_id = ? AND space_id = ? AND space_name = ?`,
-            [user_id, space_id, space_name]
-        );
-        if (dupes.length > 0) {
-            await conn.rollback();
-            return res.status(400).json({ error: '이미 같은 공간 탈출을 생성하셨습니다.' });
-        }
-
-        // user_space 저장
-        const [userSpaceResult] = await conn.query(`
-            INSERT INTO user_space
-            (user_id, space_id, space_name, memo, created_at, updated_at, status)
-            VALUES (?, ?, ?, ?, NOW(), NOW(), 'ACTIVE')
-        `, [user_id, space_id, space_name, memo || null]);
-        const user_space_id = userSpaceResult.insertId;
-
-        await conn.commit();
-        res.status(201).json({
-            result: 'success',
-            user_space_id
-        });
-    } catch (e) {
-        await conn.rollback();
-        console.error(e);
-        res.status(500).json({ error: '서버 오류' });
-    } finally {
-        conn.release();
-    }
-});
+router.post('/', auth, UserSpaceController.createUserSpace);
 
 // 유저-공간에 아이템 배치 (실질적 공간 탈출 생성)
 router.post('/:user_space_id/items', auth, async (req, res) => {
-    const { user_space_id } = req.params;
+    const user_space_id = Number(req.params.user_space_id);
     const { items } = req.body;
     const { user_id } = req.user;
 
@@ -86,7 +25,7 @@ router.post('/:user_space_id/items', auth, async (req, res) => {
         // user_space 권한 확인
         const [userSpaces] = await conn.query(
             'SELECT user_space_id FROM user_space WHERE user_space_id = ? AND user_id = ?',
-            [Number(user_space_id), user_id]
+            [user_space_id, user_id]
         );
 
         if (userSpaces.length === 0) {
@@ -104,8 +43,13 @@ router.post('/:user_space_id/items', auth, async (req, res) => {
             }
 
             await conn.query(
+<<<<<<< HEAD
                 `INSERT INTO space_item (user_space_id, item_id, item_location, detail) VALUES (?, ?, ST_GeomFromGeoJSON(?), ?)`,
                 [Number(user_space_id), item.item_id, JSON.stringify(item.item_location), item.detail]
+=======
+                `INSERT INTO space_item (user_space_id, item_id, item_location) VALUES (?, ?, ST_GeomFromGeoJSON(?))`,
+                [user_space_id, item.item_id, JSON.stringify(item.item_location)]
+>>>>>>> 1a1ea0a27f4ee5e7f5b57d3c39187ba2b3e43484
             );
             insertCount.push(item.item_id);
         }
@@ -126,19 +70,100 @@ router.post('/:user_space_id/items', auth, async (req, res) => {
     }
 });
 
+// 유저-공간 클리어
+router.post('/:user_space_id/clear', auth, async (req, res) => {
+    const user_space_id = Number(req.params.user_space_id);
+    const { user_id } = req.user;
+    const is_success = req.query.is_success !== undefined ? Number(req.query.is_success) : 1;
+
+    if (!user_space_id || isNaN(user_space_id)) {
+        return res.status(400).json({ error: 'user_space_id 오류' });
+    }
+    if (is_success !== 0 && is_success !== 1) {
+        return res.status(400).json({ error: 'is_success 값 오류' });
+    }
+
+    try {
+        // start_time 가져오기
+        const [row] = await pool.query(
+            `SELECT start_time
+            FROM space_ranking 
+            WHERE user_space_id = ? AND user_id = ?`,
+            [user_space_id, user_id]
+        );
+
+        if (!row) {
+            return res.status(404).json({ error: '기록 없음' });
+        }
+
+        const start_time = row[0].start_time;
+        const end_time = new Date();
+        const completed_at = end_time;
+        const is_success = 1;
+
+        // clear_time 계산
+        let clear_time_sec = Math.floor((end_time - start_time) / 1000);
+        if (clear_time_sec < 0 || isNaN(clear_time_sec)) {
+            clear_time_sec = 0;
+            console.log(start_time, '시작 시간 확인');
+        }
+
+        // 랭킹 계산
+        let ranking = null;
+        if (is_success === 1) {
+            const [rankRows] = await pool.query(
+                `SELECT user_id, clear_time 
+                FROM space_ranking 
+                WHERE user_space_id = ? AND is_success = 1
+                ORDER BY clear_time ASC`,
+                [user_space_id]
+            );
+            // 랭킹 집계
+            let ranking = null;
+            for (let i = 0; i < rankRows.length; i++) {
+                if (rankRows[i].user_id === user_id) {
+                    ranking = i + 1;
+                    break;
+                }
+            }
+        }
+
+        // DB 업데이트
+        await pool.query(
+            `UPDATE space_ranking SET
+             end_time = ?,
+             is_success = ?,
+             completed_at = ?,
+             clear_time = ?,
+             ranking = ?
+           WHERE user_space_id = ? AND user_id = ?`,
+            [end_time, is_success, completed_at, clear_time_sec, ranking, user_space_id, user_id]
+        );
+
+        res.json({
+            message: is_success ? '클리어 성공' : '클리어 실패',
+            clear_time: clear_time_sec,
+            ranking: ranking
+        });
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ error: '서버 오류' });
+    }
+});
+
 // 유저-공간상세 조회
 router.get('/:user_space_id', auth, async (req, res) => {
-    const { user_space_id } = req.params;
-    const user_space_id_num = Number(user_space_id);
-    if (!user_space_id_num || isNaN(user_space_id_num)) {
-        return res.status(400).json({ error: 'user_space_id 오류' });
+    const user_space_id = Number(req.params.user_space_id);
+
+    if (!user_space_id || isNaN(user_space_id)) {
+        return res.status(400).json({ error: 'user_space_id 오류' + user_space_id });
     }
     try {
         const [rows] = await pool.query(
             `SELECT user_space_id, space_name, memo
              FROM user_space
              WHERE user_space_id = ?`,
-            [user_space_id_num]
+            [user_space_id]
         );
         if (rows.length === 0) {
             return res.status(404).json({ error: '존재하지 않는 공간 탈출' });
@@ -157,79 +182,66 @@ router.get('/:user_space_id', auth, async (req, res) => {
 
 // 유저-공간 클리어 랭킹 목록 조회
 router.get('/:user_space_id/ranking', auth, async (req, res) => {
-    const { user_space_id } = req.params;
-    const user_space_id_num = Number(user_space_id);
-    if (!user_space_id_num || isNaN(user_space_id_num)) {
+    const  user_space_id  = Number(req.params.user_space_id);
+
+    if (!user_space_id || isNaN(user_space_id)) {
         return res.status(400).json({ error: 'user_space_id 오류' });
     }
-
-    // 최근 스냅샷 날짜 조회
-    const [rows] = await pool.query(
-        `SELECT MAX(snapshot_date) AS snapshot_date 
-         FROM space_ranking_snapshot 
-         WHERE user_space_id = ?`,
-        [user_space_id_num]
-    );
-    const snapshot_date = rows?.[0]?.snapshot_date || null;
-
-    // 이전 랭킹 정보 조회
-    let prevRankingMap = {};
-    if (snapshot_date) {
-        const [prevRows] = await pool.query(
-            `SELECT user_id, prev_rank FROM space_ranking_snapshot
-             WHERE user_space_id = ? AND snapshot_date = ?`,
-            [user_space_id_num, snapshot_date]
-        );
-        // user_id → 이전 순위 map{ user_id: prev_rank }
-        prevRankingMap = Object.fromEntries(
-            prevRows.map(r => [r.user_id, r.prev_rank])
-        );
-    }
-
-    // 현재 랭킹 조회
     try {
-        const [rows] = await pool.query(
-            `SELECT
-                sr.user_id,
-                u.nickname,
-                TIMESTAMPDIFF(SECOND, sr.start_time, sr.end_time) AS clear_time,
-                sr.completed_at
-             FROM space_ranking sr
-             JOIN user u ON sr.user_id = u.user_id
-             WHERE sr.user_space_id = ?
-               AND sr.is_success = 1
-             ORDER BY clear_time ASC, sr.completed_at ASC
-             LIMIT 100`,
-            [user_space_id_num]
+        // 이전 랭킹 정보 조회
+        const [snapshotRows] = await pool.query(
+            `SELECT user_id, prev_rank
+           FROM space_ranking_snapshot
+           WHERE user_space_id = ?
+           AND snapshot_date = (SELECT MAX(snapshot_date) FROM space_ranking_snapshot WHERE user_space_id = ?)
+          `,
+            [user_space_id, user_space_id]
         );
 
-        // 랭킹 변동 계산
-    const ranking = rows.map((row, idx) => {
-        const curr_rank = idx + 1;
-        const prev_rank = prevRankingMap[row.user_id];
-        let diff;
-        if (prev_rank === undefined) {
-            diff = '신규';
-        } else if (prev_rank > curr_rank) {
-            diff = '▲' + (prev_rank - curr_rank);
-        } else if (prev_rank < curr_rank) {
-            diff = '▼' + (curr_rank - prev_rank);
-        } else {
-            diff = '–';
-        }
-        return {
-            rank: curr_rank,
-            user_id: row.user_id,
-            nickname: row.nickname,
-            clear_time: row.clear_time,
-            completed_at: row.completed_at,
-            diff
-        };
-    });
+        // 맵 구조로 유저-랭킹 관리
+        const prevRankMap = {};
+        snapshotRows.forEach(row => { prevRankMap[row.user_id] = row.prev_rank; });
 
+        // 현재 랭킹 조회
+        const [currentRows] = await pool.query(
+            `SELECT user_id, clear_time
+           FROM space_ranking
+           WHERE user_space_id = ?
+           AND is_success = 1
+           AND completed_at IS NOT NULL
+           ORDER BY clear_time ASC
+          `,
+            [user_space_id]
+        );
+
+        // 랭킹 집계
+        const rankingList = [];
+        currentRows.forEach((row, idx) => {
+            const user_id = row.user_id;
+            const current_rank = idx + 1;
+            const prev_rank = prevRankMap[user_id] || null;
+            // 랭킹 변동 계산
+            let movement = null;
+            if (prev_rank === null || prev_rank === undefined) {
+                movement = 'UP'; // 신규 진입
+            } else if (current_rank < prev_rank) {
+                movement = 'UP';
+            } else if (current_rank > prev_rank) {
+                movement = 'DOWN';
+            } else {
+                movement = 'SAME';
+            }
+            rankingList.push({
+                user_id,
+                clear_time: row.clear_time,
+                current_rank,
+                prev_rank,
+                movement // UP, DOWN, SAME, NEW
+            });
+        });
         res.status(200).json({
             result: 'success',
-            ranking
+            ranking: rankingList
         });
     } catch (e) {
         console.error(e);
