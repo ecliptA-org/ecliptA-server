@@ -156,10 +156,10 @@ router.post('/:user_space_id/clear', auth, async (req, res) => {
 });
 
 // 유저-공간상세 조회
-router.get('/:user_space_id', auth, UserSpaceController.getUserSpaceDetail);
+router.get('/:user_space_id', UserSpaceController.getUserSpaceDetail);
 
 // 유저-공간 클리어 랭킹 목록 조회
-router.get('/:user_space_id/ranking', auth, async (req, res) => {
+router.get('/:user_space_id/ranking', async (req, res) => {
     const  user_space_id  = Number(req.params.user_space_id);
 
     if (!user_space_id || isNaN(user_space_id)) {
@@ -228,6 +228,6 @@ router.get('/:user_space_id/ranking', auth, async (req, res) => {
 });
 
 // 유저-공간 명성치 조회
-router.get('/:user_space_id/score', auth, UserSpaceController.getUserSpaceScore);
+router.get('/:user_space_id/score', UserSpaceController.getUserSpaceScore);
 
 module.exports = router;
