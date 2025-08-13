@@ -24,7 +24,8 @@ const signup = async (req, res) => {
     // HttpOnly 쿠키로 전달
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
-      secure: true, // HTTPS 환경일 때만
+      // secure: true, // HTTPS 환경일 때만
+      // secure: false  // 테스트 환경일 때
       sameSite: "strict",
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7일
     });
