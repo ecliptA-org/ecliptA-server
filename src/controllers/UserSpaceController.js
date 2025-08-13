@@ -1,6 +1,6 @@
 const {
-    UserSpaceService 
- }= require('../services/UserSpaceService.js');
+  UserSpaceService
+} = require('../services/UserSpaceService.js');
 
 const UserSpaceController = {
   async createUserSpace(req, res) {
@@ -16,6 +16,19 @@ const UserSpaceController = {
       res.status(500).json({ error: '서버 오류' });
     }
   },
+
+  // 명성치 조회
+  async getUserSpaceScore(req, res) {
+    try {
+      const user_space_id = Number(req.params.user_space_id);
+      const score = await UserSpaceService.getUserSpaceScore(user_space_id);
+      
+      res.status(200).json({ score });
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: '서버 오류' });
+    }
+  }
 };
 
 module.exports = UserSpaceController;
