@@ -6,8 +6,7 @@ const UserSpaceRepository = {
         const [spaces] = await pool.query(
             `SELECT space_id 
             FROM space 
-            WHERE ST_Equals(location, ST_GeomFromText('POINT(? ?)'))`,
-            [longitude, latitude]
+            WHERE ST_Equals(location, ST_GeomFromText('POINT(${longitude} ${latitude})'))`
         );
         return spaces[0];
     },
@@ -16,8 +15,7 @@ const UserSpaceRepository = {
     async insertSpace(longitude, latitude) {
         const [result] = await pool.query(
             `INSERT INTO space (location) 
-            VALUES (ST_GeomFromText('POINT(? ?)'))`,
-            [longitude, latitude]
+            VALUES (ST_GeomFromText('POINT(${longitude} ${latitude})'))`
         );
         return result.insertId;
     },
@@ -41,6 +39,17 @@ const UserSpaceRepository = {
             [user_id, space_id, space_name, memo]
         );
         return result.insertId;
+    },
+
+    // space_id로 유저 공간 조회
+    async findById(user_space_id) {
+        const [rows] = await pool.query(
+            `SELECT user_space_id, space_name, memo
+             FROM user_space
+             WHERE user_space_id = ?`,
+            [user_space_id]
+        );
+        return rows;
     },
 
     // 명성치 조회
