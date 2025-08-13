@@ -43,13 +43,9 @@ router.post('/:user_space_id/items', auth, async (req, res) => {
             }
 
             await conn.query(
-<<<<<<< HEAD
                 `INSERT INTO space_item (user_space_id, item_id, item_location, detail) VALUES (?, ?, ST_GeomFromGeoJSON(?), ?)`,
                 [Number(user_space_id), item.item_id, JSON.stringify(item.item_location), item.detail]
-=======
-                `INSERT INTO space_item (user_space_id, item_id, item_location) VALUES (?, ?, ST_GeomFromGeoJSON(?))`,
-                [user_space_id, item.item_id, JSON.stringify(item.item_location)]
->>>>>>> 1a1ea0a27f4ee5e7f5b57d3c39187ba2b3e43484
+
             );
             insertCount.push(item.item_id);
         }
