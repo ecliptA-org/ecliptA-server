@@ -124,7 +124,7 @@ const refreshToken = async (token) => {
 
 // 로그아웃 시 Refresh Token 삭제
 const logoutUser = async (userId) => {
-  await userRepository.deleteRefreshToken(userId);
+  return true;
 };
 
 // 회원 탈퇴

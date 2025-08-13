@@ -92,7 +92,6 @@ const logout = async (req, res) => {
   const user_id = req.user.user_id;
   try {
     await userService.logoutUser(user_id);
-    res.clearCookie("refreshToken");
     res.json({ result: "success", message: "로그아웃이 완료되었습니다." });
   } catch (err) {
     res.status(500).json({ error: "서버 오류" });

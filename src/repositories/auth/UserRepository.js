@@ -35,11 +35,11 @@ const findUserByRefreshToken = async (refreshToken) => {
 };
 
 // refresh token 삭제
-const deleteRefreshToken = async (userId) => {
-  await pool.query("UPDATE user SET refresh_token = NULL WHERE user_id = ?", [
-    userId,
-  ]);
-};
+// const deleteRefreshToken = async (userId) => {
+//   await pool.query("UPDATE user SET refresh_token = NULL WHERE user_id = ?", [
+//     userId,
+//   ]);
+// };
 
 // INACTIVE로 변경
 const setInactive = async (userId) => {
