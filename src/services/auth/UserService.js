@@ -102,11 +102,19 @@ const refreshToken = async (token) => {
       nickname: user.nickname,
       gender: user.gender,
     });
-    const newRefreshToken = generateRefreshToken({ user_id: user.user_id });
 
-    // 토큰 회전: 새로 만든 refresh token을 db에 저장합니다.
-    // 지금 만료 기한이 7일이니까 그 때가 되기 전에 refresh token 자동 갱신되는 로직을 추가해야 합니다.
-    await userRepository.saveRefreshToken(user.user_id, newRefreshToken);
+    let newRefreshToken = token; // 기본은 기존 토큰 유지
+
+    // 리프레시 토큰 만료 시간 체크
+    const currentTimestamp = Math.floor(Date.now() / 1000);
+    const expireTimestamp = decoded.exp;
+    const remainSeconds = expireTimestamp - currentTimestamp;
+
+    // 만료까지 남은 시간이 1일 이하이면 새로 발급
+    if (remainSeconds <= 86400) {
+      newRefreshToken = generateRefreshToken({ user_id: user.user_id });
+      await userRepository.saveRefreshToken(user.user_id, newRefreshToken);
+    }
 
     return { accessToken: newAccessToken, refreshToken: newRefreshToken };
   } catch (err) {
