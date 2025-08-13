@@ -51,7 +51,7 @@ const setInactive = async (userId) => {
 };
 
 // REACTIVE로 변경
-const setRective = async (userId) => {
+const setReactive = async (userId) => {
   const [result] = await pool.query(
     "UPDATE user SET status = ? WHERE user_id = ?",
     ["ACTIVE", userId]
@@ -66,5 +66,5 @@ module.exports = {
   findUserByRefreshToken,
   deleteRefreshToken,
   setInactive,
-  setRective,
+  setReactive,
 };

@@ -121,11 +121,16 @@ const reactive = async (req, res) => {
   }
 
   try {
-    const token = await AccountService.reactivateAccount(email, password);
+    const { accessToken, refreshToken } = await userService.reactiveAccount(
+      email,
+      password
+    );
+
     res.status(201).json({
       result: "success",
       message: "재가입이 완료되었습니다.",
-      token,
+      accessToken,
+      refreshToken,
     });
   } catch (err) {
     console.error(err);

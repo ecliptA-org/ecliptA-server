@@ -129,10 +129,12 @@ const inactiveAccount = async (userId) => {
 
 // 재가입
 const reactiveAccount = async (email, password) => {
-  const user = await userRepository.findUserByEmail(email);
-  if (!user) {
+  const users = await userRepository.findUserByEmail(email);
+  if (!users) {
     throw { status: 404, message: "존재하지 않는 이메일" };
   }
+
+  const user = users[0];
 
   // 비밀번호 검증
   const isMatch = await bcrypt.compare(password, user.password);
@@ -150,19 +152,21 @@ const reactiveAccount = async (email, password) => {
     throw { status: 404, message: "해당하는 계정이 없습니다." };
   }
 
-  // access token 토큰 발급
-  const accessToken = jwt.sign(
-    {
-      user_id: user.user_id,
-      email: user.email,
-      nickname: user.nickname,
-      gender: user.gender,
-    },
-    process.env.JWT_SECRET,
-    { expiresIn: "1h" }
-  );
+  // access token & refresh token 발급
+  const accessToken = generateAccessToken({
+    user_id: user.user_id,
+    email: user.email,
+    nickname: user.nickname,
+    gender: user.gender,
+  });
 
-  return accessToken;
+  const refreshToken = generateRefreshToken({ user_id: user.user_id });
+
+  // refresh token 저장
+  await userRepository.saveRefreshToken(user.user_id, refreshToken);
+
+  // access token과 refresh token 함께 반환
+  return { accessToken, refreshToken };
 };
 
 module.exports = {
