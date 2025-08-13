@@ -28,6 +28,9 @@ router.post('/:user_space_id/items', auth, async (req, res) => {
             [user_space_id, user_id]
         );
 
+        console.log("token: " + user_id);
+        console.log('Authorization header:', req.headers.authorization);
+
         if (userSpaces.length === 0) {
             await conn.rollback();
             return res.status(403).json({
@@ -154,6 +157,93 @@ router.post('/:user_space_id/clear', auth, async (req, res) => {
         res.status(500).json({ error: '서버 오류' });
     }
 });
+
+//유저-공간 아이템 조회
+router.get('/user-space/:user_space_id/items', auth, async (req, res) => {
+  // 1) 파라미터/쿼리 파싱
+  const user_space_id = Number(req.params.user_space_id);
+  const { user_id }   = req.user;
+
+  if (!Number.isInteger(user_space_id) || isNaN(user_space_id) || user_space_id <= 0) {
+    return res.status(400).json({ error: `user_space_id 오류: ${req.params.user_space_id}` });
+  }
+
+  const conn = await pool.getConnection();
+  try {
+    // 권한 확인
+    const [spaces] = await conn.query(
+      'SELECT 1 FROM user_space WHERE user_space_id = ? AND user_id = ? LIMIT 1',
+      [user_space_id, user_id]
+    );
+    if (spaces.length === 0) {
+      return res.status(403).json({
+        error: '해당 공간에 대한 권한이 없습니다.',
+        debug: { user_id, user_space_id }
+      });
+    }
+
+    // 좌표 포맷
+    let rows;
+    if (coord === 'lonlat') {
+      // 경도/위도 숫자 컬럼으로
+      [rows] = await conn.query(
+        `SELECT
+           space_item_id,
+           item_id,
+           ST_X(item_location) AS lon,
+           ST_Y(item_location) AS lat,
+           detail
+         FROM space_item
+         WHERE user_space_id = ?`,
+        [user_space_id, limit, offset]
+      );
+
+      return res.status(200).json({
+        result: 'success',
+        total: countRow.cnt,
+        limit, offset,
+        items: rows.map(r => ({
+          space_item_id: r.space_item_id,
+          item_id: r.item_id,
+          item_location: { type: 'Point', coordinates: [r.lon, r.lat] },
+          detail: r.detail,
+          created_at: r.created_at,
+          updated_at: r.updated_at
+        }))
+      });
+    } else {
+      // GeoJSON 문자열로
+      [rows] = await conn.query(
+        `SELECT
+           space_item_id,
+           item_id,
+           ST_AsGeoJSON(item_location) AS item_location,
+           detail
+         FROM space_item
+         WHERE user_space_id = ?`,
+        [user_space_id, limit, offset]
+      );
+
+      return res.status(200).json({
+        result: 'success',
+        total: countRow.cnt,
+        limit, offset,
+        items: rows.map(r => ({
+          space_item_id: r.space_item_id,
+          item_id: r.item_id,
+          item_location: JSON.parse(r.item_location), // {type, coordinates:[lon,lat]}
+          detail: r.detail
+        }))
+      });
+    }
+  } catch (e) {
+    console.error(e);
+    return res.status(500).json({ error: '서버 오류' });
+  } finally {
+    conn.release();
+  }
+});
+
 
 // 유저-공간상세 조회
 router.get('/:user_space_id', auth, async (req, res) => {
