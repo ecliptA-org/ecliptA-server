@@ -30,6 +30,7 @@ router.post('/:user_space_id/items', auth, async (req, res) => {
 
         if (userSpaces.length === 0) {
             await conn.rollback();
+            console.log("user_id:" + user_id +"/user_space_id:" + user_space_id);
             return res.status(403).json({ error: '해당 공간에 대한 권한이 없습니다.' });
         }
 
