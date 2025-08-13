@@ -182,14 +182,14 @@ router.get('/:user_space_id', auth, async (req, res) => {
 
 // 유저-공간 클리어 랭킹 목록 조회
 router.get('/:user_space_id/ranking', auth, async (req, res) => {
-    const { user_space_id } = Number(req.params);
+    const  user_space_id  = Number(req.params.user_space_id);
 
     if (!user_space_id || isNaN(user_space_id)) {
         return res.status(400).json({ error: 'user_space_id 오류' });
     }
     try {
         // 이전 랭킹 정보 조회
-        const [snapshotRows] = await db.query(
+        const [snapshotRows] = await pool.query(
             `SELECT user_id, prev_rank
            FROM space_ranking_snapshot
            WHERE user_space_id = ?
@@ -203,7 +203,7 @@ router.get('/:user_space_id/ranking', auth, async (req, res) => {
         snapshotRows.forEach(row => { prevRankMap[row.user_id] = row.prev_rank; });
 
         // 현재 랭킹 조회
-        const [currentRows] = await db.query(
+        const [currentRows] = await pool.query(
             `SELECT user_id, clear_time
            FROM space_ranking
            WHERE user_space_id = ?
@@ -223,7 +223,7 @@ router.get('/:user_space_id/ranking', auth, async (req, res) => {
             // 랭킹 변동 계산
             let movement = null;
             if (prev_rank === null || prev_rank === undefined) {
-                movement = NEW; // 신규 진입
+                movement = 'UP'; // 신규 진입
             } else if (current_rank < prev_rank) {
                 movement = 'UP';
             } else if (current_rank > prev_rank) {
