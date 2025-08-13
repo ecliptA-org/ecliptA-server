@@ -1,20 +1,15 @@
 const bcrypt = require("bcryptjs");
-const {
-  findUserByEmail,
-  createUser,
-  saveRefreshToken,
-  findUserByRefreshToken,
-  deleteRefreshToken,
-} = require("../../repositories/auth/UserRepository");
+const userRepository = require("../../repositories/auth/UserRepository");
 const {
   generateAccessToken,
   generateRefreshToken,
 } = require("../../utils/tokenUtil");
+const jwt = require("jsonwebtoken");
 
 // 회원가입
 const signupUser = async ({ email, password, nickname, gender }) => {
   // 이메일 중복 체크
-  const existingUser = await findUserByEmail(email);
+  const existingUser = await userRepository.findUserByEmail(email);
   if (existingUser.length > 0) {
     throw { status: 409, message: "이미 존재하는 이메일" };
   }
@@ -23,7 +18,12 @@ const signupUser = async ({ email, password, nickname, gender }) => {
   const hashedPassword = await bcrypt.hash(password, 10);
 
   // DB 등록
-  const userId = await createUser(email, hashedPassword, nickname, gender);
+  const userId = await userRepository.createUser(
+    email,
+    hashedPassword,
+    nickname,
+    gender
+  );
 
   const accessToken = generateAccessToken({
     user_id: userId,
@@ -33,7 +33,7 @@ const signupUser = async ({ email, password, nickname, gender }) => {
   });
   const refreshToken = generateRefreshToken({ user_id: userId });
 
-  await saveRefreshToken(userId, refreshToken);
+  await userRepository.saveRefreshToken(userId, refreshToken);
 
   return { accessToken, refreshToken };
 };
@@ -41,7 +41,7 @@ const signupUser = async ({ email, password, nickname, gender }) => {
 // 로그인
 const loginUser = async ({ email, password }) => {
   // 유저 조회
-  const users = await findUserByEmail(email);
+  const users = await userRepository.findUserByEmail(email);
   if (users.length === 0) {
     throw { status: 404, message: "존재하지 않는 이메일" };
   }
@@ -67,7 +67,7 @@ const loginUser = async ({ email, password }) => {
   });
   const refreshToken = generateRefreshToken({ user_id: user.user_id });
 
-  await saveRefreshToken(user.user_id, refreshToken);
+  await userRepository.saveRefreshToken(user.user_id, refreshToken);
 
   return { accessToken, refreshToken };
 };
@@ -78,7 +78,7 @@ const refreshToken = async (token) => {
     throw { status: 401, message: "Refresh Token이 없습니다." };
   }
 
-  const users = await findUserByRefreshToken(token);
+  const users = await userRepository.findUserByRefreshToken(token);
   if (users.length === 0) {
     throw { status: 403, message: "유효하지 않은 Refresh Token" };
   }
@@ -86,7 +86,6 @@ const refreshToken = async (token) => {
   const user = users[0];
 
   try {
-    const jwt = require("jsonwebtoken");
     const decoded = jwt.verify(
       token,
       process.env.JWT_REFRESH_SECRET || "your_jwt_refresh_secret_key"
@@ -105,7 +104,9 @@ const refreshToken = async (token) => {
     });
     const newRefreshToken = generateRefreshToken({ user_id: user.user_id });
 
-    await saveRefreshToken(user.user_id, newRefreshToken);
+    // 토큰 회전: 새로 만든 refresh token을 db에 저장합니다.
+    // 지금 만료 기한이 7일이니까 그 때가 되기 전에 refresh token 자동 갱신되는 로직을 추가해야 합니다.
+    await userRepository.saveRefreshToken(user.user_id, newRefreshToken);
 
     return { accessToken: newAccessToken, refreshToken: newRefreshToken };
   } catch (err) {
@@ -115,7 +116,53 @@ const refreshToken = async (token) => {
 
 // 로그아웃 시 Refresh Token 삭제
 const logoutUser = async (userId) => {
-  await deleteRefreshToken(userId);
+  await userRepository.deleteRefreshToken(userId);
+};
+
+// 회원 탈퇴
+const inactiveAccount = async (userId) => {
+  const result = await userRepository.setInactive(userId);
+  if (result.affectedRows === 0) {
+    throw { status: 404, message: "해당하는 계정이 없습니다." };
+  }
+};
+
+// 재가입
+const reactiveAccount = async (email, password) => {
+  const user = await userRepository.findUserByEmail(email);
+  if (!user) {
+    throw { status: 404, message: "존재하지 않는 이메일" };
+  }
+
+  // 비밀번호 검증
+  const isMatch = await bcrypt.compare(password, user.password);
+  if (!isMatch) {
+    throw { status: 401, message: "비밀번호 불일치" };
+  }
+
+  if (user.status === "ACTIVE") {
+    throw { status: 400, message: "이미 활성 상태입니다." };
+  }
+
+  // 재활성화
+  const result = await userRepository.setReactive(user.user_id);
+  if (result.affectedRows === 0) {
+    throw { status: 404, message: "해당하는 계정이 없습니다." };
+  }
+
+  // access token 토큰 발급
+  const accessToken = jwt.sign(
+    {
+      user_id: user.user_id,
+      email: user.email,
+      nickname: user.nickname,
+      gender: user.gender,
+    },
+    process.env.JWT_SECRET,
+    { expiresIn: "1h" }
+  );
+
+  return accessToken;
 };
 
 module.exports = {
@@ -123,4 +170,6 @@ module.exports = {
   loginUser,
   refreshToken,
   logoutUser,
+  inactiveAccount,
+  reactiveAccount,
 };

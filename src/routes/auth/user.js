@@ -22,6 +22,8 @@ router.post("/token/refresh", UserController.tokenRefresh);
 router.post("/logout", auth, UserController.logout);
 
 // 회원탈퇴 엔드포인트
+router.patch("/inactive", auth, UserController.inactive);
+
 router.patch("/inactive", auth, async (req, res) => {
   // req.user는 토큰에서 추출된 사용자 정보
   const { user_id } = req.user;
@@ -43,7 +45,9 @@ router.patch("/inactive", auth, async (req, res) => {
 });
 
 // 회원 재가입 엔드포인트
-router.patch("/active", async (req, res) => {
+router.patch("/reactive", auth, UserController.reactive);
+
+router.patch("/reactive", async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) {
     return res.status(400).json({ error: "필수 입력 누락" });

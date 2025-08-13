@@ -41,10 +41,30 @@ const deleteRefreshToken = async (userId) => {
   ]);
 };
 
+// INACTIVE로 변경
+const setInactive = async (userId) => {
+  const [result] = await pool.query(
+    "UPDATE user SET status = ? WHERE user_id = ?",
+    ["INACTIVE", userId]
+  );
+  return result;
+};
+
+// REACTIVE로 변경
+const setRective = async (userId) => {
+  const [result] = await pool.query(
+    "UPDATE user SET status = ? WHERE user_id = ?",
+    ["ACTIVE", userId]
+  );
+  return result;
+};
+
 module.exports = {
   findUserByEmail,
   createUser,
   saveRefreshToken,
   findUserByRefreshToken,
   deleteRefreshToken,
+  setInactive,
+  setRective,
 };
