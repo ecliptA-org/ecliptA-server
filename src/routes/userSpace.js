@@ -30,21 +30,30 @@ router.post('/:user_space_id/items', auth, async (req, res) => {
 
         if (userSpaces.length === 0) {
             await conn.rollback();
-            return res.status(403).json({ error: '해당 공간에 대한 권한이 없습니다.' });
+            return res.status(403).json({
+                error: '해당 공간에 대한 권한이 없습니다.',
+                debug: {
+                    user_id,
+                    user_space_id
+                }
+            });
+
         }
+
 
         // 아이템 정보 저장
         const failedItems = [];
 
         for (const item of items) {
-            if (!item.item_id || !item.item_location) {
+            if (!item.item_id || !item.item_location || item.detail == undefined) {
                 failedItems.push(item);
                 continue;
             }
 
             await conn.query(
-                `INSERT INTO space_item (user_space_id, item_id, item_location) VALUES (?, ?, ST_GeomFromGeoJSON(?))`,
-                [user_space_id, item.item_id, JSON.stringify(item.item_location)]
+                `INSERT INTO space_item (user_space_id, item_id, item_location, detail) VALUES (?, ?, ST_GeomFromGeoJSON(?), ?)`,
+                [Number(user_space_id), item.item_id, JSON.stringify(item.item_location), item.detail]
+
             );
             insertCount.push(item.item_id);
         }
@@ -56,11 +65,6 @@ router.post('/:user_space_id/items', auth, async (req, res) => {
             failed_items: failedItems.length > 0 ? failedItems : undefined
         });
 
-        await conn.commit();
-        res.status(201).json({
-            result: 'success',
-            items_inserted: insertCount.length
-        });
     } catch (e) {
         await conn.rollback();
         console.error(e);
@@ -152,36 +156,10 @@ router.post('/:user_space_id/clear', auth, async (req, res) => {
 });
 
 // 유저-공간상세 조회
-router.get('/:user_space_id', auth, async (req, res) => {
-    const user_space_id = Number(req.params.user_space_id);
-
-    if (!user_space_id || isNaN(user_space_id)) {
-        return res.status(400).json({ error: 'user_space_id 오류' + user_space_id });
-    }
-    try {
-        const [rows] = await pool.query(
-            `SELECT user_space_id, space_name, memo
-             FROM user_space
-             WHERE user_space_id = ?`,
-            [user_space_id]
-        );
-        if (rows.length === 0) {
-            return res.status(404).json({ error: '존재하지 않는 공간 탈출' });
-        }
-        res.status(200).json({
-            result: 'success',
-            user_space_id: rows[0].user_space_id,
-            space_name: rows[0].space_name,
-            memo: rows[0].memo
-        });
-    } catch (e) {
-        console.error(e);
-        res.status(500).json({ error: '서버 오류' });
-    }
-});
+router.get('/:user_space_id', UserSpaceController.getUserSpaceDetail);
 
 // 유저-공간 클리어 랭킹 목록 조회
-router.get('/:user_space_id/ranking', auth, async (req, res) => {
+router.get('/:user_space_id/ranking', async (req, res) => {
     const  user_space_id  = Number(req.params.user_space_id);
 
     if (!user_space_id || isNaN(user_space_id)) {
@@ -248,5 +226,8 @@ router.get('/:user_space_id/ranking', auth, async (req, res) => {
         res.status(500).json({ error: '서버 오류' });
     }
 });
+
+// 유저-공간 명성치 조회
+router.get('/:user_space_id/score', UserSpaceController.getUserSpaceScore);
 
 module.exports = router;

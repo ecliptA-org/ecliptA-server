@@ -1,21 +1,70 @@
 const {
-    UserSpaceService 
- }= require('../services/UserSpaceService.js');
+  UserSpaceService
+} = require('../services/UserSpaceService.js');
+
+const { UserSpaceCreateDto } = require('../dtos/request/UserSpaceCreateDto.js');
+const { UserSpaceIdDto } = require('../dtos/UserSpaceIdDto');
+const { UserSpaceDetailDto } = require('../dtos/response/UserSpaceDetailDto.js');
+
+const  DuplicateError = require('../errors/DuplicateError.js');
 
 const UserSpaceController = {
+  // 공간 저장
   async createUserSpace(req, res) {
     try {
       const { user_id } = req.user;
-      const user_space_id = await UserSpaceService.createUserSpace(user_id, req.body);
+
+      const userSpaceCreateDto = new UserSpaceCreateDto(req.body);
+
+      const user_space_id = await UserSpaceService.createUserSpace(user_id, userSpaceCreateDto);
+
       res.status(201).json({ result: 'success', user_space_id });
     } catch (e) {
-      if (e.message?.includes('중복')) {
-        return res.status(400).json({ error: e.message });
+      if (e instanceof DuplicateError) {
+        return res.status(409).json({ error: e.message });
       }
       console.error(e);
       res.status(500).json({ error: '서버 오류' });
     }
   },
+
+  // 유저-공간에 아이템 배치 (실질적 공간 탈출 생성)
+
+
+  // 유저-공간 클리어
+
+
+  // 유저-공간상세 조회
+  async getUserSpaceDetail(req, res) {
+    try {
+      const user_space_id = req.params.user_space_id;
+      const userSpaceIdDto = new UserSpaceIdDto(user_space_id);
+
+      const space = await UserSpaceService.getUserSpaceDetail(userSpaceIdDto);
+
+      const responseDto = new UserSpaceDetailDto(space);
+
+      res.status(200).json(responseDto);
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: '서버 오류' });
+    }
+  },
+
+  // 명성치 조회
+  async getUserSpaceScore(req, res) {
+    try {
+      const user_space_id = req.params.user_space_id;
+      const userSpaceIdDto = new UserSpaceIdDto(user_space_id);
+
+      const score = await UserSpaceService.getUserSpaceScore(userSpaceIdDto);
+
+      res.status(200).json({ score });
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: '서버 오류' });
+    }
+  }
 };
 
 module.exports = UserSpaceController;
