@@ -45,7 +45,7 @@ router.post('/:user_space_id/items', auth, async (req, res) => {
         const failedItems = [];
 
         for (const item of items) {
-            if (!item.item_id || !item.item_location || item.detail != undefined) {
+            if (!item.item_id || !item.item_location || item.detail == undefined) {
                 failedItems.push(item);
                 continue;
             }
