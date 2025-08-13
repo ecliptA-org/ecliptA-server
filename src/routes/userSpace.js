@@ -30,21 +30,30 @@ router.post('/:user_space_id/items', auth, async (req, res) => {
 
         if (userSpaces.length === 0) {
             await conn.rollback();
-            return res.status(403).json({ error: '해당 공간에 대한 권한이 없습니다.' });
+            return res.status(403).json({
+                error: '해당 공간에 대한 권한이 없습니다.',
+                debug: {
+                    user_id,
+                    user_space_id
+                }
+            });
+
         }
+
 
         // 아이템 정보 저장
         const failedItems = [];
 
         for (const item of items) {
-            if (!item.item_id || !item.item_location) {
+            if (!item.item_id || !item.item_location || item.detail == undefined) {
                 failedItems.push(item);
                 continue;
             }
 
             await conn.query(
-                `INSERT INTO space_item (user_space_id, item_id, item_location) VALUES (?, ?, ST_GeomFromGeoJSON(?))`,
-                [user_space_id, item.item_id, JSON.stringify(item.item_location)]
+                `INSERT INTO space_item (user_space_id, item_id, item_location, detail) VALUES (?, ?, ST_GeomFromGeoJSON(?), ?)`,
+                [Number(user_space_id), item.item_id, JSON.stringify(item.item_location), item.detail]
+
             );
             insertCount.push(item.item_id);
         }
@@ -56,11 +65,6 @@ router.post('/:user_space_id/items', auth, async (req, res) => {
             failed_items: failedItems.length > 0 ? failedItems : undefined
         });
 
-        await conn.commit();
-        res.status(201).json({
-            result: 'success',
-            items_inserted: insertCount.length
-        });
     } catch (e) {
         await conn.rollback();
         console.error(e);
