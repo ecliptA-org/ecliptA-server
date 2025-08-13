@@ -44,7 +44,7 @@ const deleteRefreshToken = async (userId) => {
 // INACTIVE로 변경
 const setInactive = async (userId) => {
   const [result] = await pool.query(
-    "UPDATE user SET status = ? WHERE user_id = ?",
+    "UPDATE user SET status = ?, inactive_date = NOW() WHERE user_id = ?", // 탈퇴한 시간: 지금으로 설정
     ["INACTIVE", userId]
   );
   return result;
@@ -53,8 +53,11 @@ const setInactive = async (userId) => {
 // REACTIVE로 변경
 const setReactive = async (userId) => {
   const [result] = await pool.query(
-    "UPDATE user SET status = ? WHERE user_id = ?",
-    ["ACTIVE", userId]
+    `UPDATE user
+     SET status = 'ACTIVE',
+         inactive_date = NULL
+     WHERE user_id = ?`, // 재가입 시 탈퇴했던 날짜 삭제해야 돼
+    [userId]
   );
   return result;
 };

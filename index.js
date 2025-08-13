@@ -3,6 +3,9 @@ const pool = require("./src/config/db.js");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
 
+const schedule = require("node-schedule");
+const deleteExpiredInactiveUsers = require("./src/batch/deleteExpiredInactiveUsers.js");
+
 require("dotenv").config();
 
 const app = express();
@@ -33,6 +36,15 @@ if (process.env.NODE_ENV !== "production") {
     }
   });
 }
+
+// 매일 자정에 탈퇴한 회원들의 돌아가는 시간 실행
+schedule.scheduleJob("0 0 * * *", () => {
+  deleteExpiredInactiveUsers();
+});
+// schedule.scheduleJob("*/1 * * * *", () => {
+//   console.log("[테스트] 탈퇴 회원 삭제 실행:", new Date());
+//   deleteExpiredInactiveUsers();
+// });
 
 ////////////////////////////// 회원 //////////////////////////////
 const userRouter = require("./src/routes/auth/user.js");
