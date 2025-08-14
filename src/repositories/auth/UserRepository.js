@@ -67,7 +67,7 @@ module.exports = {
   createUser,
   saveRefreshToken,
   findUserByRefreshToken,
-  deleteRefreshToken,
+  // deleteRefreshToken,
   setInactive,
   setReactive,
 };
