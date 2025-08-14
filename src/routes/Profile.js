@@ -15,20 +15,21 @@ const s3Client = new S3Client({
 });
 
 // 프로필 이미지 다운로드 presigned URL 발급
-router.get('/', auth, async (req, res) => {
+router.get('/', async (req, res) => {
     try {
-        const userId = req.user.user_id;
+        const userId = req.query.userId || req.user?.user_id;
 
         if (!userId) {
-            return res.status(400).json({ error: 'Missing userId' });
+            return res.status(400).json({ error: '존재하지 않는 유저입니다.' });
         }
 
         const [rows] = await pool.query(
             "SELECT image_url FROM profile_img WHERE user_id = ?",
             [userId]
         );
+
         if (!rows.length || !rows[0].image_url) {
-            return res.status(404).json({ error: 'Profile image not found' });
+            return res.status(404).json({ error: '프로필 이미지가 존재하지 않습니다.' });
         }
         const s3Key = rows[0].image_url;
 
