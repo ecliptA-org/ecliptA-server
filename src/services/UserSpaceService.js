@@ -1,5 +1,6 @@
 const UserSpaceRepository = require("../repositories/UserSpaceRepository");
 const redisClient = require("../config/redisClient.js");
+require('dotenv').config();
 
 const DuplicateError = require("../errors/DuplicateError.js");
 
