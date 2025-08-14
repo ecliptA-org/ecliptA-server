@@ -36,9 +36,9 @@ const UserSpaceService = {
 
   // 유저-공간상세 조회
   async getUserSpaceDetail(userSpaceIdDto) {
-    const rows = await UserSpaceRepository.findById(
-      userSpaceIdDto.user_space_id
-    );
+    const { user_space_id } = userSpaceIdDto;
+
+    const rows = await UserSpaceRepository.findById(user_space_id);
     if (rows.length === 0) {
       throw new Error("NOT_FOUND");
     }
@@ -46,13 +46,13 @@ const UserSpaceService = {
   },
 
   // 명성치 조회
-  async getUserSpaceScore(user_space_id) {
+  async getUserSpaceScore(userSpaceIdDto) {
+    const { user_space_id } = userSpaceIdDto;
+
     const score = await UserSpaceRepository.getUserSpaceScore(user_space_id);
 
     return score;
   },
-
-  //
 };
 
 module.exports = { UserSpaceService };

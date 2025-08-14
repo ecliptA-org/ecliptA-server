@@ -60,35 +60,29 @@ const UserSpaceRepository = {
             WHERE user_space_id = ?`,
       [user_space_id]
     );
+    console.log("user_space_id:", typeof user_space_id, user_space_id);
+    console.log("명성치 rows:", rows);
     return rows[0] ? rows[0].score : 0;
   },
 
-  // 이전 랭킹 가져오기
-  async getPreviousRanking(user_space_id) {
-    const [rows] = await pool.query(
-      `SELECT user_id, prev_rank
-     FROM space_ranking_snapshot
-     WHERE user_space_id = ?
-       AND snapshot_date = (
-         SELECT MAX(snapshot_date) FROM space_ranking_snapshot WHERE user_space_id = ?
-       )`,
-      [user_space_id, user_space_id]
-    );
-    return rows;
-  },
+  // 랭킹 가져오기
+  async getRanking(req, res) {
+    const user_space_id = Number(req.params.user_space_id);
 
-  // 현재 랭킹 가져오기
-  async getCurrentRanking(user_space_id) {
-    const [rows] = await pool.query(
-      `SELECT user_id, clear_time
-     FROM space_ranking
-     WHERE user_space_id = ?
-       AND is_success = 1
-       AND completed_at IS NOT NULL
-     ORDER BY clear_time ASC`,
-      [user_space_id]
-    );
-    return rows;
+    if (!user_space_id || isNaN(user_space_id)) {
+      return res.status(400).json({ error: "user_space_id 오류" });
+    }
+
+    try {
+      const rankingList = await UserSpaceService.getRankingCache(user_space_id);
+      res.status(200).json({
+        result: "success",
+        ranking: rankingList,
+      });
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: "서버 오류" });
+    }
   },
 };
 
