@@ -35,10 +35,31 @@ const findUserByRefreshToken = async (refreshToken) => {
 };
 
 // refresh token 삭제
-const deleteRefreshToken = async (userId) => {
-  await pool.query("UPDATE user SET refresh_token = NULL WHERE user_id = ?", [
-    userId,
-  ]);
+// const deleteRefreshToken = async (userId) => {
+//   await pool.query("UPDATE user SET refresh_token = NULL WHERE user_id = ?", [
+//     userId,
+//   ]);
+// };
+
+// INACTIVE로 변경
+const setInactive = async (userId) => {
+  const [result] = await pool.query(
+    "UPDATE user SET status = ?, inactive_date = NOW() WHERE user_id = ?", // 탈퇴한 시간: 지금으로 설정
+    ["INACTIVE", userId]
+  );
+  return result;
+};
+
+// REACTIVE로 변경
+const setReactive = async (userId) => {
+  const [result] = await pool.query(
+    `UPDATE user
+     SET status = 'ACTIVE',
+         inactive_date = NULL
+     WHERE user_id = ?`, // 재가입 시 탈퇴했던 날짜 삭제해야 돼
+    [userId]
+  );
+  return result;
 };
 
 module.exports = {
@@ -47,4 +68,6 @@ module.exports = {
   saveRefreshToken,
   findUserByRefreshToken,
   deleteRefreshToken,
+  setInactive,
+  setReactive,
 };
