@@ -1,69 +1,97 @@
-const pool = require('../config/db.js');
+const pool = require("../config/db.js");
 
 const UserSpaceRepository = {
-    // POINT(경도, 위도)로 공간 조회
-    async findSpace(longitude, latitude) {
-        const [spaces] = await pool.query(
-            `SELECT space_id 
+  // POINT(경도, 위도)로 공간 조회
+  async findSpace(longitude, latitude) {
+    const [spaces] = await pool.query(
+      `SELECT space_id 
             FROM space 
             WHERE ST_Equals(location, ST_GeomFromText('POINT(${longitude} ${latitude})'))`
-        );
-        return spaces[0];
-    },
+    );
+    return spaces[0];
+  },
 
-    // 공간이 없으면 생성
-    async insertSpace(longitude, latitude) {
-        const [result] = await pool.query(
-            `INSERT INTO space (location) 
+  // 공간이 없으면 생성
+  async insertSpace(longitude, latitude) {
+    const [result] = await pool.query(
+      `INSERT INTO space (location) 
             VALUES (ST_GeomFromText('POINT(${longitude} ${latitude})'))`
-        );
-        return result.insertId;
-    },
+    );
+    return result.insertId;
+  },
 
-    // 같은 유저+공간+이름으로 중복 생성 불가능
-    async checkDuplicate(user_id, space_id, space_name) {
-        const [rows] = await pool.query(
-            `SELECT user_space_id 
+  // 같은 유저+공간+이름으로 중복 생성 불가능
+  async checkDuplicate(user_id, space_id, space_name) {
+    const [rows] = await pool.query(
+      `SELECT user_space_id 
             FROM user_space 
             WHERE user_id = ? AND space_id = ? AND space_name = ?`,
-            [user_id, space_id, space_name]
-        );
-        return rows.length > 0;
-    },
+      [user_id, space_id, space_name]
+    );
+    return rows.length > 0;
+  },
 
-    // 유저 공간 생성
-    async createUserSpace(user_id, space_id, space_name, memo) {
-        const [result] = await pool.query(
-            `INSERT INTO user_space (user_id, space_id, space_name, memo, created_at, updated_at, status)
+  // 유저 공간 생성
+  async createUserSpace(user_id, space_id, space_name, memo) {
+    const [result] = await pool.query(
+      `INSERT INTO user_space (user_id, space_id, space_name, memo, created_at, updated_at, status)
             VALUES (?, ?, ?, ?, NOW(), NOW(), 'ACTIVE')`,
-            [user_id, space_id, space_name, memo]
-        );
-        return result.insertId;
-    },
+      [user_id, space_id, space_name, memo]
+    );
+    return result.insertId;
+  },
 
-    // space_id로 유저 공간 조회
-    async findById(user_space_id) {
-        const [rows] = await pool.query(
-            `SELECT user_space_id, space_name, memo
+  // space_id로 유저 공간 조회
+  async findById(user_space_id) {
+    const [rows] = await pool.query(
+      `SELECT user_space_id, space_name, memo
              FROM user_space
              WHERE user_space_id = ?`,
-            [user_space_id]
-        );
-        return rows;
-    },
+      [user_space_id]
+    );
+    return rows;
+  },
 
-    // 명성치 조회
-    async getUserSpaceScore(user_space_id) {
-        const [rows] = await pool.query(
-            `SELECT score 
+  // 명성치 조회
+  async getUserSpaceScore(user_space_id) {
+    const [rows] = await pool.query(
+      `SELECT score 
             FROM user_space
             WHERE user_space_id = ?`,
-            [user_space_id]
-        );
-        console.log('user_space_id:', typeof user_space_id, user_space_id);
-        console.log('명성치 rows:', rows);
-        return rows[0] ? rows[0].score : 0;
-    },
+      [user_space_id]
+    );
+    console.log("user_space_id:", typeof user_space_id, user_space_id);
+    console.log("명성치 rows:", rows);
+    return rows[0] ? rows[0].score : 0;
+  },
+
+  // 이전 랭킹 가져오기
+  async getPreviousRanking(user_space_id) {
+    const [rows] = await pool.query(
+      `SELECT user_id, prev_rank
+     FROM space_ranking_snapshot
+     WHERE user_space_id = ?
+       AND snapshot_date = (
+         SELECT MAX(snapshot_date) FROM space_ranking_snapshot WHERE user_space_id = ?
+       )`,
+      [user_space_id, user_space_id]
+    );
+    return rows;
+  },
+
+  // 현재 랭킹 가져오기
+  async getCurrentRanking(user_space_id) {
+    const [rows] = await pool.query(
+      `SELECT user_id, clear_time
+     FROM space_ranking
+     WHERE user_space_id = ?
+       AND is_success = 1
+       AND completed_at IS NOT NULL
+     ORDER BY clear_time ASC`,
+      [user_space_id]
+    );
+    return rows;
+  },
 };
 
 module.exports = UserSpaceRepository;

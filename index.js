@@ -16,7 +16,10 @@ app.use(cors());
 app.use(express.json());
 
 // refresh token 발급 시 필요한 쿠키 머시기
-app.use(cookieParser()); 
+app.use(cookieParser());
+
+// Redis 연결
+require("./src/config/redisClient.js");
 
 // Health check 엔드포인트
 app.get("/", (req, res) => {
