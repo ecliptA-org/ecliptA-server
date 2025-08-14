@@ -16,9 +16,7 @@ app.use(cors());
 app.use(express.json());
 
 // refresh token 발급 시 필요한 쿠키 머시기
-app.use(cookieParser());
-
-////////////////////////////// 테스트 //////////////////////////////
+app.use(cookieParser()); 
 
 // Health check 엔드포인트
 app.get("/", (req, res) => {
@@ -49,6 +47,10 @@ schedule.scheduleJob("0 0 * * *", () => {
 ////////////////////////////// 회원 //////////////////////////////
 const userRouter = require("./src/routes/auth/user.js");
 app.use("/api/user", userRouter);
+
+////////////////////////////// 프로필 이미지 //////////////////////////////
+const profileRouter = require("./src/routes/Profile.js");
+app.use("/api/profile", profileRouter);
 
 ////////////////////////////// 아이템 //////////////////////////////
 const itemRouter = require("./src/routes/item.js");
