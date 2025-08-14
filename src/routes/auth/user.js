@@ -13,7 +13,7 @@ const router = express.Router();
 router.post("/signup", UserController.signup);
 
 // 로그인 엔드포인트
-router.post("/login", auth, UserController.login);
+router.post("/login", UserController.login);
 
 // refresh token으로 access token 재발급 엔드포인트
 router.post("/token/refresh", UserController.tokenRefresh);
