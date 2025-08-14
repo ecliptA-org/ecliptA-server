@@ -38,6 +38,11 @@ if (process.env.NODE_ENV !== "production") {
   });
 }
 
+//요청 테스트 로그
+app.use((req, res, next) => {
+  console.log('[HIT]', req.method, req.originalUrl, 'Auth:', req.headers.authorization || '(none)');
+  next();
+});
 // 매일 자정에 탈퇴한 회원들의 돌아가는 시간 실행
 schedule.scheduleJob("0 0 * * *", () => {
   deleteExpiredInactiveUsers();

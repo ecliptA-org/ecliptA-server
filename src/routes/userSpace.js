@@ -4,75 +4,85 @@ const auth = require("../middlewares/auth");
 const UserSpaceController = require("../controllers/UserSpaceController");
 const pool = require("../config/db.js");
 
+function getCurrentDateTime6() {
+  const now = new Date();
+  const pad = (n, z = 2) => ('00' + n).slice(-z);
+  const ms = ('000000' + (now.getMilliseconds() * 1000)).slice(-6); // ms→µs 변환
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ` +
+         `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}.${ms}`;
+}
+
 // 공간 저장
 router.post("/", auth, UserSpaceController.createUserSpace);
 
 // 유저-공간에 아이템 배치 (실질적 공간 탈출 생성)
-router.post("/:user_space_id/items", auth, async (req, res) => {
-  const user_space_id = Number(req.params.user_space_id);
-  const { items } = req.body;
-  const { user_id } = req.user;
+router.post('/:user_space_id/items', auth, async (req, res) => {
+    const user_space_id = Number(req.params.user_space_id);
+    const { items } = req.body;
+    const { user_id } = req.user;
 
-  if (!items || !Array.isArray(items) || items.length === 0) {
-    return res.status(400).json({ error: "items 배열이 필요합니다." });
-  }
-
-  const insertCount = [];
-  const conn = await pool.getConnection();
-  try {
-    await conn.beginTransaction();
-
-    // user_space 권한 확인
-    const [userSpaces] = await conn.query(
-      "SELECT user_space_id FROM user_space WHERE user_space_id = ? AND user_id = ?",
-      [user_space_id, user_id]
-    );
-
-    if (userSpaces.length === 0) {
-      await conn.rollback();
-      return res.status(403).json({
-        error: "해당 공간에 대한 권한이 없습니다.",
-        debug: {
-          user_id,
-          user_space_id,
-        },
-      });
+    if (!items || !Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({ error: 'items 배열이 필요합니다.' });
     }
 
-    // 아이템 정보 저장
-    const failedItems = [];
+    const insertCount = [];
+    const conn = await pool.getConnection();
+    try {
+        await conn.beginTransaction();
 
-    for (const item of items) {
-      if (!item.item_id || !item.item_location || item.detail == undefined) {
-        failedItems.push(item);
-        continue;
-      }
+        // user_space 권한 확인
+        const [userSpaces] = await conn.query(
+            'SELECT user_space_id FROM user_space WHERE user_space_id = ? AND user_id = ?',
+            [user_space_id, user_id]
+        );
 
-      await conn.query(
-        `INSERT INTO space_item (user_space_id, item_id, item_location, detail) VALUES (?, ?, ST_GeomFromGeoJSON(?), ?)`,
-        [
-          Number(user_space_id),
-          item.item_id,
-          JSON.stringify(item.item_location),
-          item.detail,
-        ]
-      );
-      insertCount.push(item.item_id);
+        console.log("token: " + user_id);
+        console.log('Authorization header:', req.headers.authorization);
+
+        if (userSpaces.length === 0) {
+            await conn.rollback();
+            return res.status(403).json({
+                error: '해당 공간에 대한 권한이 없습니다.',
+                debug: {
+                    user_id,
+                    user_space_id
+                }
+            });
+
+        }
+
+
+        // 아이템 정보 저장
+        const failedItems = [];
+
+        for (const item of items) {
+            if (!item.item_id || !item.item_location || item.detail == undefined) {
+                failedItems.push(item);
+                continue;
+            }
+
+            await conn.query(
+                `INSERT INTO space_item (user_space_id, item_id, item_location, detail) VALUES (?, ?, ST_GeomFromGeoJSON(?), ?)`,
+                [Number(user_space_id), item.item_id, JSON.stringify(item.item_location), item.detail]
+
+            );
+            insertCount.push(item.item_id);
+        }
+
+        await conn.commit();
+        res.status(201).json({
+            result: 'success',
+            items_inserted: insertCount.length,
+            failed_items: failedItems.length > 0 ? failedItems : undefined
+        });
+
+    } catch (e) {
+        await conn.rollback();
+        console.error(e);
+        res.status(500).json({ error: '서버 오류' });
+    } finally {
+        conn.release();
     }
-
-    await conn.commit();
-    res.status(201).json({
-      result: "success",
-      items_inserted: insertCount.length,
-      failed_items: failedItems.length > 0 ? failedItems : undefined,
-    });
-  } catch (e) {
-    await conn.rollback();
-    console.error(e);
-    res.status(500).json({ error: "서버 오류" });
-  } finally {
-    conn.release();
-  }
 });
 
 // 유저-공간 클리어
@@ -164,6 +174,88 @@ router.post("/:user_space_id/clear", auth, async (req, res) => {
     res.status(500).json({ error: "서버 오류" });
   }
 });
+
+//유저-공간 아이템 조회
+router.get('/:user_space_id/items', auth, async (req, res) => {
+  const user_space_id = Number(req.params.user_space_id);
+  const { user_id }   = req.user;
+
+  if (!Number.isInteger(user_space_id) || isNaN(user_space_id) || user_space_id <= 0) {
+    return res.status(400).json({ error: `user_space_id 오류: ${req.params.user_space_id}` });
+  }
+
+  console.log('[auth] auth header =', req.headers.authorization);
+
+  const conn = await pool.getConnection();
+  try {
+    // 권한 확인
+    const [spaces] = await conn.query(
+      'SELECT 1 FROM user_space WHERE user_space_id = ? AND user_id = ? LIMIT 1',
+      [user_space_id, user_id]
+    );
+    if (spaces.length === 0) {
+      return res.status(403).json({
+        error: '해당 공간에 대한 권한이 없습니다.',
+        debug: { user_id, user_space_id }
+      });
+    }
+
+    const [rows] = await conn.query(
+    `SELECT
+        space_item_id,
+        item_id,
+        ST_X(item_location) AS lon,
+        ST_Y(item_location) AS lat,
+        detail
+        FROM space_item
+        WHERE user_space_id = ?`,
+    [user_space_id]
+    );
+
+    const currentTime = getCurrentDateTime6();
+
+     // rank 조회
+    const [rankRows] = await conn.query(
+    `SELECT space_ranking_id
+    FROM space_ranking
+    WHERE user_id = ? AND user_space_id = ?`,
+    [user_id, user_space_id]
+    );
+
+    if (rankRows.length > 0) {
+    await conn.query(
+        `UPDATE space_ranking
+        SET start_time = ?
+        WHERE user_id = ? AND user_space_id = ?`,
+        [currentTime, user_id, user_space_id]
+    );
+    } else {
+    await conn.query(
+        `INSERT INTO space_ranking (user_id, user_space_id, start_time)
+        VALUES (?, ?, ?)`,
+        [user_id, user_space_id, currentTime]
+    );
+    }
+
+
+    return res.status(200).json({
+        result: 'success',
+        items: rows.map(r => ({
+            space_item_id: r.space_item_id,
+            item_id: r.item_id,
+            item_location: { type: 'Point', coordinates: [r.lon, r.lat] },
+            detail: r.detail
+        })),
+        start_time: currentTime
+    });
+  } catch (e) {
+    console.error(e);
+    return res.status(500).json({ error: '서버 오류' });
+  } finally {
+    conn.release();
+  }
+});
+
 
 // 유저-공간상세 조회
 router.get("/:user_space_id", UserSpaceController.getUserSpaceDetail);
