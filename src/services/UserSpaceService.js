@@ -53,6 +53,64 @@ const UserSpaceService = {
 
     return score;
   },
+
+  // 유저-공간 클리어 랭킹 조회 (Redis 캐시)
+  async getRankingCache(user_space_id) {
+    const cacheKey = `ranking:${user_space_id}`;
+
+    // Redis 캐시 확인
+    const cached = await redisClient.get(cacheKey);
+    if (cached) {
+      console.log(`Redis 캐시 히트: ${cacheKey}`);
+      return JSON.parse(cached);
+    }
+
+    console.log(`DB 조회: ${cacheKey}`);
+
+    // DB 조회
+    const snapshotRows = await UserSpaceRepository.getPreviousRanking(
+      user_space_id
+    );
+    const prevRankMap = {};
+    snapshotRows.forEach((row) => {
+      prevRankMap[row.user_id] = row.prev_rank;
+    });
+
+    const currentRows = await UserSpaceRepository.getCurrentRanking(
+      user_space_id
+    );
+    const rankingList = [];
+
+    currentRows.forEach((row, idx) => {
+      const user_id = row.user_id;
+      const current_rank = idx + 1;
+      const prev_rank = prevRankMap[user_id] || null;
+
+      let movement = null;
+      if (prev_rank === null || prev_rank === undefined) {
+        movement = "UP"; // 신규 진입
+      } else if (current_rank < prev_rank) {
+        movement = "UP";
+      } else if (current_rank > prev_rank) {
+        movement = "DOWN";
+      } else {
+        movement = "SAME";
+      }
+
+      rankingList.push({
+        user_id,
+        clear_time: row.clear_time,
+        current_rank,
+        prev_rank,
+        movement,
+      });
+    });
+
+    // Redis 캐시 저장
+    await redisClient.set(cacheKey, JSON.stringify(rankingList), { EX: 60 });
+
+    return rankingList;
+  },
 };
 
 module.exports = { UserSpaceService };
