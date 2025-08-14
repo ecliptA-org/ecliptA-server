@@ -60,6 +60,8 @@ const UserSpaceRepository = {
             WHERE user_space_id = ?`,
             [user_space_id]
         );
+        console.log('user_space_id:', typeof user_space_id, user_space_id);
+        console.log('명성치 rows:', rows);
         return rows[0] ? rows[0].score : 0;
     },
 };
