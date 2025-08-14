@@ -76,7 +76,7 @@ const UserSpaceController = {
     }
 
     try {
-      const rankingList = await rankingService.getRankingCache(user_space_id);
+      const rankingList = await UserSpaceService.getRankingCache(user_space_id);
       res.status(200).json({
         result: "success",
         ranking: rankingList,
