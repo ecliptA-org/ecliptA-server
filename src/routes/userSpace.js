@@ -4,6 +4,14 @@ const auth = require('../middlewares/auth');
 const UserSpaceController = require('../controllers/UserSpaceController');
 const pool = require('../config/db.js');
 
+function getCurrentDateTime6() {
+  const now = new Date();
+  const pad = (n, z = 2) => ('00' + n).slice(-z);
+  const ms = ('000000' + (now.getMilliseconds() * 1000)).slice(-6); // ms→µs 변환
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ` +
+         `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}.${ms}`;
+}
+
 // 공간 저장
 router.post('/', auth, UserSpaceController.createUserSpace);
 
@@ -159,14 +167,15 @@ router.post('/:user_space_id/clear', auth, async (req, res) => {
 });
 
 //유저-공간 아이템 조회
-router.get('/user-space/:user_space_id/items', auth, async (req, res) => {
-  // 1) 파라미터/쿼리 파싱
+router.get('/:user_space_id/items', auth, async (req, res) => {
   const user_space_id = Number(req.params.user_space_id);
   const { user_id }   = req.user;
 
   if (!Number.isInteger(user_space_id) || isNaN(user_space_id) || user_space_id <= 0) {
     return res.status(400).json({ error: `user_space_id 오류: ${req.params.user_space_id}` });
   }
+
+  console.log('[auth] auth header =', req.headers.authorization);
 
   const conn = await pool.getConnection();
   try {
@@ -182,60 +191,54 @@ router.get('/user-space/:user_space_id/items', auth, async (req, res) => {
       });
     }
 
-    // 좌표 포맷
-    let rows;
-    if (coord === 'lonlat') {
-      // 경도/위도 숫자 컬럼으로
-      [rows] = await conn.query(
-        `SELECT
-           space_item_id,
-           item_id,
-           ST_X(item_location) AS lon,
-           ST_Y(item_location) AS lat,
-           detail
-         FROM space_item
-         WHERE user_space_id = ?`,
-        [user_space_id, limit, offset]
-      );
+    const [rows] = await conn.query(
+    `SELECT
+        space_item_id,
+        item_id,
+        ST_X(item_location) AS lon,
+        ST_Y(item_location) AS lat,
+        detail
+        FROM space_item
+        WHERE user_space_id = ?`,
+    [user_space_id]
+    );
 
-      return res.status(200).json({
-        result: 'success',
-        total: countRow.cnt,
-        limit, offset,
-        items: rows.map(r => ({
-          space_item_id: r.space_item_id,
-          item_id: r.item_id,
-          item_location: { type: 'Point', coordinates: [r.lon, r.lat] },
-          detail: r.detail,
-          created_at: r.created_at,
-          updated_at: r.updated_at
-        }))
-      });
+    const currentTime = getCurrentDateTime6();
+
+     // rank 조회
+    const [rankRows] = await conn.query(
+    `SELECT space_ranking_id
+    FROM space_ranking
+    WHERE user_id = ? AND user_space_id = ?`,
+    [user_id, user_space_id]
+    );
+
+    if (rankRows.length > 0) {
+    await conn.query(
+        `UPDATE space_ranking
+        SET start_time = ?
+        WHERE user_id = ? AND user_space_id = ?`,
+        [currentTime, user_id, user_space_id]
+    );
     } else {
-      // GeoJSON 문자열로
-      [rows] = await conn.query(
-        `SELECT
-           space_item_id,
-           item_id,
-           ST_AsGeoJSON(item_location) AS item_location,
-           detail
-         FROM space_item
-         WHERE user_space_id = ?`,
-        [user_space_id, limit, offset]
-      );
-
-      return res.status(200).json({
-        result: 'success',
-        total: countRow.cnt,
-        limit, offset,
-        items: rows.map(r => ({
-          space_item_id: r.space_item_id,
-          item_id: r.item_id,
-          item_location: JSON.parse(r.item_location), // {type, coordinates:[lon,lat]}
-          detail: r.detail
-        }))
-      });
+    await conn.query(
+        `INSERT INTO space_ranking (user_id, user_space_id, start_time)
+        VALUES (?, ?, ?)`,
+        [user_id, user_space_id, currentTime]
+    );
     }
+
+
+    return res.status(200).json({
+        result: 'success',
+        items: rows.map(r => ({
+            space_item_id: r.space_item_id,
+            item_id: r.item_id,
+            item_location: { type: 'Point', coordinates: [r.lon, r.lat] },
+            detail: r.detail
+        })),
+        start_time: currentTime
+    });
   } catch (e) {
     console.error(e);
     return res.status(500).json({ error: '서버 오류' });

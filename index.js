@@ -34,6 +34,12 @@ if (process.env.NODE_ENV !== "production") {
   });
 }
 
+//요청 테스트 로그
+app.use((req, res, next) => {
+  console.log('[HIT]', req.method, req.originalUrl, 'Auth:', req.headers.authorization || '(none)');
+  next();
+});
+
 ////////////////////////////// 회원 //////////////////////////////
 const userRouter = require("./src/routes/auth/user.js");
 app.use("/api/user", userRouter);
