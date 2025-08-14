@@ -5,8 +5,8 @@ const redisConnectionUrl =
   process.env.REDIS_URL ||
   `redis://${process.env.REDIS_HOST}:${process.env.REDIS_PORT}`;
 
-if (!redisUrl || redisUrl.includes('undefined')) {
-  console.error('Redis URL 환경변수가 올바르게 설정되지 않았습니다:', redisUrl);
+if (!redisConnectionUrl || redisConnectionUrl.includes('undefined')) {
+  console.error('Redis URL 환경변수가 올바르게 설정되지 않았습니다:', redisConnectionUrl);
   process.exit(1);
 }
 
