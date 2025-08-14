@@ -1,4 +1,5 @@
 const UserSpaceRepository = require("../repositories/UserSpaceRepository");
+const redisClient = require("../config/redisClient.js");
 
 const DuplicateError = require("../errors/DuplicateError.js");
 
