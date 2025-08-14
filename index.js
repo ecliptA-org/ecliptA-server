@@ -3,6 +3,9 @@ const pool = require("./src/config/db.js");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
 
+const schedule = require("node-schedule");
+const deleteExpiredInactiveUsers = require("./src/batch/deleteExpiredInactiveUsers.js");
+
 require("dotenv").config();
 
 const app = express();
@@ -16,6 +19,7 @@ app.use(express.json());
 app.use(cookieParser());
 
 ////////////////////////////// 테스트 //////////////////////////////
+app.use(cookieParser()); 
 
 // Health check 엔드포인트
 app.get("/", (req, res) => {
@@ -39,10 +43,22 @@ app.use((req, res, next) => {
   console.log('[HIT]', req.method, req.originalUrl, 'Auth:', req.headers.authorization || '(none)');
   next();
 });
+// 매일 자정에 탈퇴한 회원들의 돌아가는 시간 실행
+schedule.scheduleJob("0 0 * * *", () => {
+  deleteExpiredInactiveUsers();
+});
+// schedule.scheduleJob("*/1 * * * *", () => {
+//   console.log("[테스트] 탈퇴 회원 삭제 실행:", new Date());
+//   deleteExpiredInactiveUsers();
+// });
 
 ////////////////////////////// 회원 //////////////////////////////
 const userRouter = require("./src/routes/auth/user.js");
 app.use("/api/user", userRouter);
+
+////////////////////////////// 프로필 이미지 //////////////////////////////
+const profileRouter = require("./src/routes/Profile.js");
+app.use("/api/profile", profileRouter);
 
 ////////////////////////////// 아이템 //////////////////////////////
 const itemRouter = require("./src/routes/item.js");
