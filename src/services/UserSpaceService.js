@@ -88,6 +88,7 @@ const UserSpaceService = {
 
     currentRows.forEach((row, idx) => {
       const user_id = row.user_id;
+      //const nickname = row.nickname;
       const current_rank = idx + 1;
       const prev_rank = prevRankMap[user_id] || null;
 
@@ -104,6 +105,7 @@ const UserSpaceService = {
 
       rankingList.push({
         user_id,
+        //nickname, 
         clear_time: row.clear_time,
         current_rank,
         prev_rank,
