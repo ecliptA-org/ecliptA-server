@@ -19,8 +19,23 @@ redisClient.on("error", (err) => {
 });
 
 (async () => {
-  await redisClient.connect();
-  console.log(`Redis 연결됨: ${redisConnectionUrl}`);
-})();
+  try {
+    await redisClient.connect();
+    console.log(`Redis 연결됨: ${redisConnectionUrl}`);
+  } catch (err) {
+    console.error("Redis 연결 실패:", err);
+    process.exit(1);
+  }
+})(); 
+
+// 10초마다 PING으로 연결 상태 유지 
+setInterval(() => {
+  redisClient.ping().catch(() => {});
+}, 10000);
+
+process.on('SIGINT', async () => {
+  await redisClient.quit();
+  process.exit(0);
+});
 
 module.exports = redisClient;
