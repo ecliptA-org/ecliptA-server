@@ -64,6 +64,10 @@ app.use("/api/profile", profileRouter);
 const itemRouter = require("./src/routes/item.js");
 app.use("/api/items", itemRouter);
 
+////////////////////////////// 재화 //////////////////////////////
+const coinRouter = require("./src/routes/coin.js");
+app.use("/api/coin", coinRouter);
+
 ////////////////////////////// 공간 //////////////////////////////
 const userSpaceRouter = require("./src/routes/userSpace.js");
 app.use("/api/user-space", userSpaceRouter);
