@@ -8,8 +8,9 @@ module.exports = (req, res, next) => {
   const token = auth.replace("Bearer ", "");
   try {
     req.user = jwt.verify(token, process.env.JWT_SECRET);
+    req.token = token;
     next();
   } catch (e) {
-    return res.status(401).json({ error: "유효하지 않은 토큰" });
+    return res.status(401).json({ error: "유효하지 않은 토큰", token });
   }
 };
