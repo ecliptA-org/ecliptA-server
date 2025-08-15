@@ -57,7 +57,6 @@ const UserSpaceService = {
 
   // 유저-공간 클리어 랭킹 조회 (Redis 캐시)
   async getRankingCache(user_space_id) {
-    const { user_space_id } = userSpaceIdDto;
     const cacheKey = `ranking:${user_space_id}`;
 
     // Redis 캐시 확인
