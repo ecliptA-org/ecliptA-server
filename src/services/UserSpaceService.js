@@ -62,8 +62,12 @@ const UserSpaceService = {
     // Redis 캐시 확인
     const cached = await redisClient.get(cacheKey);
     if (cached) {
-      console.log(`Redis 캐시 히트: ${cacheKey}`);
-      return JSON.parse(cached);
+      try {
+        console.log(`Redis 캐시 히트: ${cacheKey}`);
+        return JSON.parse(cached);
+      } catch (e) { 
+        return undefined;
+      }
     }
 
     console.log(`DB 조회: ${cacheKey}`);
